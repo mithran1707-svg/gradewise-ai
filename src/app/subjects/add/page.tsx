@@ -38,7 +38,7 @@ export default function AddSubjectPage() {
   const [type, setType] = useState<SubjectType | null>(null);
   const [marks, setMarks] = useState<SubjectMarks>({});
   const [credits, setCredits] = useState<number>(3);
-  const [iaprCount, setIaprCount] = useState<number>(1);
+  const [iaprCount, setIaprCount] = useState<number>(0);
   const [predictedEndSem, setPredictedEndSem] = useState<number>(75);
   const [saved, setSaved] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
@@ -224,7 +224,7 @@ export default function AddSubjectPage() {
                     <Input label="CIA I" type="number" min={0} max={100} placeholder="0–100" value={marks.cia1 ?? ""} onChange={(e) => setMark("cia1", Number(e.target.value))} />
                     <Input label="CIA II" type="number" min={0} max={100} placeholder="0–100" value={marks.cia2 ?? ""} onChange={(e) => setMark("cia2", Number(e.target.value))} />
                     <Input label="SA 1" type="number" min={0} max={100} placeholder="0–100" value={marks.sa1 ?? ""} onChange={(e) => setMark("sa1", Number(e.target.value))} />
-                    <Input label="SA 2" type="number" min={0} max={100} placeholder="0–100" value={marks.sa2 ?? ""} onChange={(e) => setMark("sa2", Number(e.target.value))} />
+                    <Input label="SA 2" type="number" min={0} max={100} placeholder="0–100" value={marks.sa2 ?? ""} onChange={(e) => setMark("sa2", Number(e.target.value))} onKeyDown={(e) => e.key === "Enter" && handleProceedToResult()} />
                   </div>
                 )}
 
@@ -235,7 +235,8 @@ export default function AddSubjectPage() {
                       type="number"
                       min={1}
                       max={15}
-                      value={iaprCount}
+                      placeholder="e.g. 3"
+                      value={iaprCount === 0 ? "" : iaprCount}
                       onChange={(e) => {
                         const n = Math.max(1, Math.min(15, Number(e.target.value) || 1));
                         setIaprCount(n);
@@ -268,7 +269,7 @@ export default function AddSubjectPage() {
 
                 {isTCP && (
                   <div className="border-t pt-4">
-                    <Input label="ML marks" type="number" min={0} max={100} placeholder="0–100" value={marks.ml ?? ""} onChange={(e) => setMark("ml", Number(e.target.value))} className="max-w-xs" />
+                    <Input label="ML marks" type="number" min={0} max={100} placeholder="0–100" value={marks.ml ?? ""} onChange={(e) => setMark("ml", Number(e.target.value))} onKeyDown={(e) => e.key === "Enter" && handleProceedToResult()} className="max-w-xs" />
                   </div>
                 )}
 
@@ -330,7 +331,8 @@ export default function AddSubjectPage() {
                 type="number"
                 min={0}
                 max={100}
-                value={predictedEndSem}
+                placeholder="0–100"
+                value={predictedEndSem === 0 ? "" : predictedEndSem}
                 onChange={(e) => setPredictedEndSem(Math.max(0, Math.min(100, Number(e.target.value) || 0)))}
                 className="max-w-xs mb-6"
               />

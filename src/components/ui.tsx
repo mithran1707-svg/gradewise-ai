@@ -77,9 +77,13 @@ export function Input({
   ...props
 }: React.InputHTMLAttributes<HTMLInputElement> & { label?: string; hint?: string }) {
   const handleFocus = (e: React.FocusEvent<HTMLInputElement>) => {
-    // Select all text on focus so typing immediately replaces the value (no leading zeros)
     e.target.select();
     onFocus?.(e);
+  };
+
+  const handleWheel = (e: React.WheelEvent<HTMLInputElement>) => {
+    // Prevent scroll from changing number input values
+    e.currentTarget.blur();
   };
 
   return (
@@ -91,6 +95,7 @@ export function Input({
           className
         )}
         onFocus={handleFocus}
+        onWheel={props.type === "number" ? handleWheel : undefined}
         {...props}
       />
       {hint && <span className="mt-1 block text-xs text-slate-muted">{hint}</span>}
