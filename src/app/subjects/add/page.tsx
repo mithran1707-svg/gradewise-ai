@@ -14,7 +14,7 @@ import {
   Subject,
 } from "@/lib/types";
 import { computeFinal, gradeRequirements, resolveCredits, gradeColor } from "@/lib/calculations";
-import { newSubjectId, upsertSubject } from "@/lib/storage";
+import { newSubjectId } from "@/lib/storage";
 
 const TYPE_ORDER: SubjectType[] = ["THEORY", "PRACTICAL", "T1P1", "T1P2", "T2P1", "T3P1", "T2P2", "T3P2"];
 
@@ -29,6 +29,9 @@ const TYPE_DESCRIPTIONS: Record<SubjectType, string> = {
   T3P2: "3 theory credits + 2 practical credits.",
 };
 
+// Round to avoid floating point issues like 49.9999999
+const round2 = (n: number) => Math.round(n * 100) / 100;
+
 export default function AddSubjectPage() {
   const router = useRouter();
   const { session, updateSubjects } = useSession();
@@ -38,9 +41,10 @@ export default function AddSubjectPage() {
   const [type, setType] = useState<SubjectType | null>(null);
   const [marks, setMarks] = useState<SubjectMarks>({});
   const [credits, setCredits] = useState<number>(3);
-  const [iaprCount, setIaprCount] = useState<number>(2);
+  const [iaprCount, setIaprCount] = useState<number>(1);
   const [predictedEndSem, setPredictedEndSem] = useState<number>(75);
   const [saved, setSaved] = useState(false);
+  const [validationError, setValidationError] = useState<string | null>(null);
 
   const creditSplit = useMemo(
     () => (type ? resolveCredits(type, { total: credits }) : { theory: 0, practical: 0, total: 0 }),
@@ -49,7 +53,14 @@ export default function AddSubjectPage() {
 
   const result = useMemo(() => {
     if (!type) return null;
-    return computeFinal({ type, marks }, { endSemTheory: predictedEndSem, endSemPractical: predictedEndSem });
+    const r = computeFinal({ type, marks }, { endSemTheory: predictedEndSem, endSemPractical: predictedEndSem });
+    return {
+      ...r,
+      internal: round2(r.internal),
+      internalMax: round2(r.internalMax),
+      endSemConverted: round2(r.endSemConverted),
+      finalMark: round2(r.finalMark),
+    };
   }, [type, marks, predictedEndSem]);
 
   const requirements = useMemo(() => {
@@ -57,7 +68,8 @@ export default function AddSubjectPage() {
     return gradeRequirements({ type, marks }, predictedEndSem);
   }, [type, marks, predictedEndSem]);
 
-  const setMark = (key: keyof SubjectMarks, value: number) => setMarks((m) => ({ ...m, [key]: value }));
+  const setMark = (key: keyof SubjectMarks, value: number) =>
+    setMarks((m) => ({ ...m, [key]: value }));
 
   const setIapr = (index: number, value: number) =>
     setMarks((m) => {
@@ -67,6 +79,56 @@ export default function AddSubjectPage() {
     });
 
   const isTCP = type && type !== "THEORY" && type !== "PRACTICAL";
+
+  // ---- Validation ----
+  const validateStep3 = (): string | null => {
+    if (!type) return null;
+
+    if (type === "THEORY" || isTCP) {
+      if (marks.cia1 === undefined || marks.cia1 === null || String(marks.cia1) === "")
+        return "Please enter CIA I marks.";
+      if (marks.cia2 === undefined || marks.cia2 === null || String(marks.cia2) === "")
+        return "Please enter CIA II marks.";
+      if (marks.sa1 === undefined || marks.sa1 === null || String(marks.sa1) === "")
+        return "Please enter SA 1 marks.";
+      if (marks.sa2 === undefined || marks.sa2 === null || String(marks.sa2) === "")
+        return "Please enter SA 2 marks.";
+    }
+
+    if (type === "PRACTICAL" || isTCP) {
+      const iapr = marks.iapr ?? [];
+      for (let i = 0; i < iaprCount; i++) {
+        if (iapr[i] === undefined || iapr[i] === null || String(iapr[i]) === "")
+          return `Please enter IAPR ${i + 1} marks.`;
+      }
+    }
+
+    if (type === "PRACTICAL") {
+      if (marks.activity === undefined || marks.activity === null || String(marks.activity) === "")
+        return "Please enter Activity marks.";
+    }
+
+    if (isTCP) {
+      if (marks.ml === undefined || marks.ml === null || String(marks.ml) === "")
+        return "Please enter ML marks.";
+    }
+
+    if (type === "THEORY" || type === "PRACTICAL") {
+      if (!credits || credits < 1) return "Please enter a valid credit value.";
+    }
+
+    return null;
+  };
+
+  const handleProceedToResult = () => {
+    const error = validateStep3();
+    if (error) {
+      setValidationError(error);
+      return;
+    }
+    setValidationError(null);
+    setStep(4);
+  };
 
   const handleSave = () => {
     if (!session || !type) return;
@@ -113,6 +175,7 @@ export default function AddSubjectPage() {
       </div>
 
       <AnimatePresence mode="wait">
+        {/* STEP 1 — Subject name */}
         {step === 1 && (
           <motion.div key="s1" initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }}>
             <GlassCard className="max-w-lg">
@@ -132,6 +195,7 @@ export default function AddSubjectPage() {
           </motion.div>
         )}
 
+        {/* STEP 2 — Subject type */}
         {step === 2 && (
           <motion.div key="s2" initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }}>
             <h2 className="font-display text-xl font-medium mb-1">Select the subject type</h2>
@@ -143,6 +207,7 @@ export default function AddSubjectPage() {
                   onClick={() => {
                     setType(t);
                     setMarks({});
+                    setValidationError(null);
                     if (t === "THEORY" || t === "PRACTICAL") setCredits(3);
                     else setCredits(resolveCredits(t, {}).total);
                   }}
@@ -159,90 +224,170 @@ export default function AddSubjectPage() {
               ))}
             </div>
             <div className="flex gap-2 mt-6">
-              <Button variant="secondary" onClick={() => setStep(1)}>
-                Back
-              </Button>
-              <Button disabled={!type} onClick={() => setStep(3)}>
-                Continue
-              </Button>
+              <Button variant="secondary" onClick={() => setStep(1)}>Back</Button>
+              <Button disabled={!type} onClick={() => setStep(3)}>Continue</Button>
             </div>
           </motion.div>
         )}
 
+        {/* STEP 3 — Enter marks */}
         {step === 3 && type && (
           <motion.div key="s3" initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }} className="grid lg:grid-cols-3 gap-4">
             <GlassCard className="lg:col-span-2">
               <h2 className="font-display text-xl font-medium mb-1">Enter marks for {name}</h2>
-              <p className="text-sm text-slate-muted mb-5">All marks are out of 100. Saved automatically as you continue.</p>
+              <p className="text-sm text-slate-muted mb-5">
+                All marks are out of 100. Fill in all fields before proceeding.
+              </p>
 
               <div className="space-y-4">
+                {/* CIA + SA */}
                 {(type === "THEORY" || isTCP) && (
-                  <div className="grid grid-cols-2 gap-4">
-                    <Input label="CIA I" type="number" min={0} max={100} value={marks.cia1 ?? ""} onChange={(e) => setMark("cia1", Number(e.target.value))} />
-                    <Input label="CIA II" type="number" min={0} max={100} value={marks.cia2 ?? ""} onChange={(e) => setMark("cia2", Number(e.target.value))} />
-                    <Input label="SA 1" type="number" min={0} max={100} value={marks.sa1 ?? ""} onChange={(e) => setMark("sa1", Number(e.target.value))} />
-                    <Input label="SA 2" type="number" min={0} max={100} value={marks.sa2 ?? ""} onChange={(e) => setMark("sa2", Number(e.target.value))} />
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-muted mb-3">
+                      CIA & Skill Assessment
+                    </p>
+                    <div className="grid grid-cols-2 gap-4">
+                      <Input
+                        label="CIA I *"
+                        type="number" min={0} max={100}
+                        value={marks.cia1 ?? ""}
+                        onChange={(e) => { setMark("cia1", Number(e.target.value)); setValidationError(null); }}
+                        placeholder="0 – 100"
+                      />
+                      <Input
+                        label="CIA II *"
+                        type="number" min={0} max={100}
+                        value={marks.cia2 ?? ""}
+                        onChange={(e) => { setMark("cia2", Number(e.target.value)); setValidationError(null); }}
+                        placeholder="0 – 100"
+                      />
+                      <Input
+                        label="SA 1 *"
+                        type="number" min={0} max={100}
+                        value={marks.sa1 ?? ""}
+                        onChange={(e) => { setMark("sa1", Number(e.target.value)); setValidationError(null); }}
+                        placeholder="0 – 100"
+                      />
+                      <Input
+                        label="SA 2 *"
+                        type="number" min={0} max={100}
+                        value={marks.sa2 ?? ""}
+                        onChange={(e) => { setMark("sa2", Number(e.target.value)); setValidationError(null); }}
+                        placeholder="0 – 100"
+                      />
+                    </div>
                   </div>
                 )}
 
+                {/* IAPR */}
                 {(type === "PRACTICAL" || isTCP) && (
                   <div className="border-t pt-4">
-                    <Input
-                      label="Number of IAPR assessments"
-                      type="number"
-                      min={1}
-                      max={6}
-                      value={iaprCount}
-                      onChange={(e) => {
-                        const n = Math.max(1, Math.min(6, Number(e.target.value) || 1));
-                        setIaprCount(n);
-                        setMarks((m) => ({ ...m, iapr: Array.from({ length: n }, (_, i) => m.iapr?.[i] ?? 0) }));
-                      }}
-                      className="mb-4 max-w-xs"
-                    />
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-muted mb-3">
+                      IAPR Assessments
+                    </p>
+                    <div className="mb-4 max-w-xs">
+                      <label className="block text-sm font-medium mb-1.5">
+                        Number of IAPR assessments *
+                        <span className="text-slate-muted font-normal ml-1">(1 – 15)</span>
+                      </label>
+                      <input
+                        type="number"
+                        min={1}
+                        max={15}
+                        value={iaprCount}
+                        onChange={(e) => {
+                          const n = Math.max(1, Math.min(15, Number(e.target.value) || 1));
+                          setIaprCount(n);
+                          setMarks((m) => ({
+                            ...m,
+                            iapr: Array.from({ length: n }, (_, i) => m.iapr?.[i] ?? undefined as unknown as number),
+                          }));
+                          setValidationError(null);
+                        }}
+                        className="w-full rounded-xl border border-ink/10 dark:border-paper/15 bg-paper/60 dark:bg-ink-soft/60 px-3.5 py-2.5 text-sm outline-none focus:border-gold"
+                      />
+                    </div>
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                       {Array.from({ length: iaprCount }).map((_, i) => (
                         <Input
                           key={i}
-                          label={`IAPR ${i + 1}`}
+                          label={`IAPR ${i + 1} *`}
                           type="number"
                           min={0}
                           max={100}
                           value={marks.iapr?.[i] ?? ""}
-                          onChange={(e) => setIapr(i, Number(e.target.value))}
+                          onChange={(e) => { setIapr(i, Number(e.target.value)); setValidationError(null); }}
+                          placeholder="0 – 100"
                         />
                       ))}
                     </div>
                   </div>
                 )}
 
+                {/* Activity (Practical only) */}
                 {type === "PRACTICAL" && (
                   <div className="border-t pt-4">
-                    <Input label="Activity marks" type="number" min={0} max={100} value={marks.activity ?? ""} onChange={(e) => setMark("activity", Number(e.target.value))} className="max-w-xs" />
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-muted mb-3">
+                      Activity
+                    </p>
+                    <Input
+                      label="Activity marks *"
+                      type="number" min={0} max={100}
+                      value={marks.activity ?? ""}
+                      onChange={(e) => { setMark("activity", Number(e.target.value)); setValidationError(null); }}
+                      className="max-w-xs"
+                      placeholder="0 – 100"
+                    />
                   </div>
                 )}
 
+                {/* ML (TCP only) */}
                 {isTCP && (
                   <div className="border-t pt-4">
-                    <Input label="ML marks" type="number" min={0} max={100} value={marks.ml ?? ""} onChange={(e) => setMark("ml", Number(e.target.value))} className="max-w-xs" />
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-muted mb-3">
+                      Mini Lab / ML
+                    </p>
+                    <Input
+                      label="ML marks *"
+                      type="number" min={0} max={100}
+                      value={marks.ml ?? ""}
+                      onChange={(e) => { setMark("ml", Number(e.target.value)); setValidationError(null); }}
+                      className="max-w-xs"
+                      placeholder="0 – 100"
+                    />
                   </div>
                 )}
 
+                {/* Credits (Theory / Practical only) */}
                 {(type === "THEORY" || type === "PRACTICAL") && (
                   <div className="border-t pt-4">
-                    <Input label="Credits" type="number" min={1} max={6} value={credits} onChange={(e) => setCredits(Number(e.target.value) || 0)} className="max-w-xs" />
+                    <Input
+                      label="Credits *"
+                      type="number" min={1} max={6}
+                      value={credits}
+                      onChange={(e) => { setCredits(Number(e.target.value) || 0); setValidationError(null); }}
+                      className="max-w-xs"
+                    />
                   </div>
                 )}
               </div>
 
+              {/* Validation error */}
+              {validationError && (
+                <div className="mt-5 rounded-xl bg-crimson/10 border border-crimson/30 px-4 py-3 text-sm text-crimson font-medium flex items-center gap-2">
+                  ⚠ {validationError}
+                </div>
+              )}
+
               <div className="flex gap-2 mt-6">
-                <Button variant="secondary" onClick={() => setStep(2)}>
+                <Button variant="secondary" onClick={() => { setStep(2); setValidationError(null); }}>
                   Back
                 </Button>
-                <Button onClick={() => setStep(4)}>Predict result</Button>
+                <Button onClick={handleProceedToResult}>Predict result</Button>
               </div>
             </GlassCard>
 
+            {/* Credit split sidebar */}
             <GlassCard>
               <h3 className="font-display text-base font-medium mb-3">Credit split</h3>
               <div className="space-y-2 text-sm">
@@ -263,14 +408,21 @@ export default function AddSubjectPage() {
                 <div className="mt-5 pt-5 border-t">
                   <p className="text-xs uppercase tracking-wide text-slate-muted mb-2">Internal so far</p>
                   <p className="font-mono-num text-2xl font-semibold">
-                    {result.internal.toFixed(2)} <span className="text-sm text-slate-muted">/ {result.internalMax}</span>
+                    {result.internal.toFixed(2)}{" "}
+                    <span className="text-sm text-slate-muted">/ {result.internalMax.toFixed(2)}</span>
                   </p>
                 </div>
               )}
+              <div className="mt-4 pt-4 border-t">
+                <p className="text-xs text-slate-muted">
+                  * All fields marked with an asterisk must be filled before proceeding.
+                </p>
+              </div>
             </GlassCard>
           </motion.div>
         )}
 
+        {/* STEP 4 — Result */}
         {step === 4 && type && result && (
           <motion.div key="s4" initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }} className="grid lg:grid-cols-3 gap-4">
             <GlassCard className="lg:col-span-2">
@@ -285,25 +437,29 @@ export default function AddSubjectPage() {
                 min={0}
                 max={100}
                 value={predictedEndSem}
-                onChange={(e) => setPredictedEndSem(Math.max(0, Math.min(100, Number(e.target.value) || 0)))}
+                onChange={(e) =>
+                  setPredictedEndSem(Math.max(0, Math.min(100, Number(e.target.value) || 0)))
+                }
                 className="max-w-xs mb-6"
               />
 
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                <Stat label="Internal" value={`${result.internal.toFixed(1)} / ${result.internalMax}`} />
-                <Stat label="End sem (conv.)" value={`${result.endSemConverted.toFixed(1)} / ${result.endSemMax}`} />
-                <Stat label="Final mark" value={result.finalMark.toFixed(1)} />
+                <Stat label="Internal" value={`${result.internal.toFixed(2)} / ${result.internalMax.toFixed(2)}`} />
+                <Stat label="End sem (conv.)" value={`${result.endSemConverted.toFixed(2)} / ${result.endSemMax}`} />
+                <Stat label="Final mark" value={result.finalMark.toFixed(2)} />
                 <Stat label="Grade" value={result.grade} valueClass="text-2xl" color={gradeColor(result.grade)} />
               </div>
 
               <div className="mt-5 flex flex-wrap gap-2 items-center">
                 <Badge tone={result.passEndSem ? "teal" : "crimson"}>
-                  End sem {result.passEndSem ? "≥ 45%" : "< 45% required"}
+                  End sem {result.passEndSem ? "≥ 45%" : "< 45% — at risk"}
                 </Badge>
                 <Badge tone={result.passTotal ? "teal" : "crimson"}>
-                  Total {result.passTotal ? "≥ 50%" : "< 50% required"}
+                  Total {result.passTotal ? "≥ 50%" : "< 50% — at risk"}
                 </Badge>
-                <Badge tone={result.passed ? "teal" : "crimson"}>{result.passed ? "Pass" : "At risk"}</Badge>
+                <Badge tone={result.passed ? "teal" : "crimson"}>
+                  {result.passed ? "Pass" : "Fail risk"}
+                </Badge>
                 <Badge tone="gold">{result.gradePoint.toFixed(1)} grade points</Badge>
               </div>
 
@@ -326,9 +482,7 @@ export default function AddSubjectPage() {
               </div>
 
               <div className="flex gap-2 mt-6">
-                <Button variant="secondary" onClick={() => setStep(3)}>
-                  Back
-                </Button>
+                <Button variant="secondary" onClick={() => setStep(3)}>Back</Button>
                 <Button onClick={handleSave} disabled={saved}>
                   {saved ? "✓ Saved" : "Save subject"}
                 </Button>
@@ -338,11 +492,26 @@ export default function AddSubjectPage() {
             <GlassCard>
               <h3 className="font-display text-base font-medium mb-4">Summary</h3>
               <ul className="space-y-2 text-sm">
-                <li className="flex justify-between"><span className="text-slate-muted">Name</span><span className="font-medium">{name}</span></li>
-                <li className="flex justify-between"><span className="text-slate-muted">Type</span><span className="font-medium">{SUBJECT_TYPE_LABELS[type]}</span></li>
-                <li className="flex justify-between"><span className="text-slate-muted">Theory credit</span><span className="font-mono-num">{creditSplit.theory}</span></li>
-                <li className="flex justify-between"><span className="text-slate-muted">Practical credit</span><span className="font-mono-num">{creditSplit.practical}</span></li>
-                <li className="flex justify-between pt-2 border-t font-medium"><span>Total credit</span><span className="font-mono-num">{creditSplit.total}</span></li>
+                <li className="flex justify-between">
+                  <span className="text-slate-muted">Name</span>
+                  <span className="font-medium">{name}</span>
+                </li>
+                <li className="flex justify-between">
+                  <span className="text-slate-muted">Type</span>
+                  <span className="font-medium">{SUBJECT_TYPE_LABELS[type]}</span>
+                </li>
+                <li className="flex justify-between">
+                  <span className="text-slate-muted">Theory credit</span>
+                  <span className="font-mono-num">{creditSplit.theory}</span>
+                </li>
+                <li className="flex justify-between">
+                  <span className="text-slate-muted">Practical credit</span>
+                  <span className="font-mono-num">{creditSplit.practical}</span>
+                </li>
+                <li className="flex justify-between pt-2 border-t font-medium">
+                  <span>Total credit</span>
+                  <span className="font-mono-num">{creditSplit.total}</span>
+                </li>
               </ul>
             </GlassCard>
           </motion.div>
@@ -352,11 +521,24 @@ export default function AddSubjectPage() {
   );
 }
 
-function Stat({ label, value, valueClass, color }: { label: string; value: string; valueClass?: string; color?: string }) {
+function Stat({
+  label,
+  value,
+  valueClass,
+  color,
+}: {
+  label: string;
+  value: string;
+  valueClass?: string;
+  color?: string;
+}) {
   return (
     <div className="rounded-xl border border-ink/5 dark:border-paper/10 px-3 py-3">
       <p className="text-xs text-slate-muted">{label}</p>
-      <p className={`font-mono-num font-semibold mt-0.5 ${valueClass ?? "text-lg"}`} style={color ? { color } : undefined}>
+      <p
+        className={`font-mono-num font-semibold mt-0.5 ${valueClass ?? "text-lg"}`}
+        style={color ? { color } : undefined}
+      >
         {value}
       </p>
     </div>
