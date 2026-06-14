@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useRef } from "react";
+import { searchSubjects, SubjectSuggestion } from "@/lib/subjectsDb";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import AppShell from "@/components/AppShell";
@@ -35,6 +36,8 @@ export default function AddSubjectPage() {
 
   const [step, setStep] = useState(1);
   const [name, setName] = useState("");
+  const [suggestions, setSuggestions] = useState<SubjectSuggestion[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
   const [type, setType] = useState<SubjectType | null>(null);
   const [marks, setMarks] = useState<SubjectMarks>({});
   const [credits, setCredits] = useState<number>(3);
@@ -165,14 +168,61 @@ export default function AddSubjectPage() {
             <GlassCard className="max-w-lg">
               <h2 className="font-display text-xl font-medium mb-1">What&apos;s the subject called?</h2>
               <p className="text-sm text-slate-muted mb-5">e.g. Physics, Python Programming, Machine Learning</p>
-              <Input
-                label="Subject name"
-                placeholder="e.g. Machine Learning"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                autoFocus
-              />
-              <Button className="mt-6 w-full" disabled={!name.trim()} onClick={() => setStep(2)}>
+              <div className="relative">
+                <Input
+                  label="Subject name"
+                  placeholder="e.g. Machine Learning"
+                  value={name}
+                  autoFocus
+                  autoComplete="off"
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setName(val);
+                    const s = searchSubjects(val);
+                    setSuggestions(s);
+                    setShowSuggestions(s.length > 0);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && name.trim()) setStep(2);
+                    if (e.key === "Escape") setShowSuggestions(false);
+                  }}
+                  onFocus={() => { if (suggestions.length > 0) setShowSuggestions(true); }}
+                />
+                {showSuggestions && (
+                  <div className="absolute z-50 w-full mt-1 rounded-xl border border-ink/10 dark:border-paper/15 bg-paper dark:bg-ink-soft shadow-glass overflow-hidden">
+                    {suggestions.map((s) => (
+                      <button
+                        key={s.name}
+                        type="button"
+                        className="w-full text-left px-4 py-3 hover:bg-gold/10 transition-colors border-b border-ink/5 dark:border-paper/5 last:border-0"
+                        onClick={() => {
+                          setName(s.name);
+                          setShowSuggestions(false);
+                          // Auto-set credits based on subject type
+                          if (s.theory > 0 && s.practical > 0) {
+                            setCredits(s.theory + s.practical);
+                          } else {
+                            setCredits(s.theory + s.practical);
+                          }
+                          // Auto-select type
+                          if (s.theory > 0 && s.practical === 0) setType("THEORY");
+                          else if (s.theory === 0 && s.practical > 0) setType("PRACTICAL");
+                          else if (s.theory > 0 && s.practical > 0) {
+                            const key = `T${s.theory}P${s.practical}` as any;
+                            if (["T1P1","T1P2","T2P1","T3P1","T2P2","T3P2"].includes(key)) setType(key);
+                          }
+                        }}
+                      >
+                        <p className="text-sm font-medium">{s.name}</p>
+                        <p className="text-xs text-slate-muted mt-0.5">
+                          Theory: {s.theory} &nbsp;|&nbsp; Practical: {s.practical} &nbsp;|&nbsp; Total: {s.theory + s.practical}
+                        </p>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <Button className="mt-6 w-full" disabled={!name.trim()} onClick={() => { setShowSuggestions(false); setStep(2); }}>
                 Continue
               </Button>
             </GlassCard>
