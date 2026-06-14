@@ -57,7 +57,7 @@ const hashPassword = (password: string): string => {
   return `h${hash}`;
 };
 
-function getUsers(): LocalUserRecord[] {
+export function getUsers(): LocalUserRecord[] {
   if (!isBrowser()) return [];
   const raw = window.localStorage.getItem(USERS_KEY);
   return raw ? (JSON.parse(raw) as LocalUserRecord[]) : [];
@@ -85,6 +85,10 @@ export type AuthError =
 export function signup(input: SignupInput): { ok: true; uid: string } | { ok: false; error: AuthError } {
   const users = getUsers();
   const regLower = input.registerNumber.trim().toLowerCase();
+  const adminReg = (process.env.NEXT_PUBLIC_ADMIN_REGISTER ?? "ADMIN").toLowerCase();
+  if (regLower === adminReg) {
+    return { ok: false, error: "REGISTER_NUMBER_TAKEN" };
+  }
   const emailLower = input.email.trim().toLowerCase();
 
   if (users.some((u) => u.registerNumber.toLowerCase() === regLower)) {
