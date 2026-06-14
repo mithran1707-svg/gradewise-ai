@@ -28,7 +28,8 @@ export async function exportSemesterPDF(
   const jsPDF = jsPDFModule.default || jsPDFModule.jsPDF;
   const autoTableModule = await import("jspdf-autotable");
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const autoTable = (autoTableModule as any).default ?? autoTableModule.autoTable;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const autoTable = (autoTableModule as any).default ?? (autoTableModule as any).autoTable;
 
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const profile = data.profile;
