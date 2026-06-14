@@ -1,0 +1,108 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: 250 247 240;
+  --bg-soft: 241 236 225;
+  --fg: 11 18 32;
+  --fg-muted: 90 99 117;
+  --line: 228 220 201;
+  --card: 255 255 255;
+}
+
+.dark {
+  --bg: 11 18 32;
+  --bg-soft: 18 27 46;
+  --fg: 247 244 237;
+  --fg-muted: 154 165 186;
+  --line: 31 42 64;
+  --card: 18 27 46;
+}
+
+* {
+  border-color: rgb(var(--line) / 1);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: rgb(var(--bg));
+  color: rgb(var(--fg));
+  font-family: var(--font-inter), sans-serif;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.font-display {
+  font-family: var(--font-fraunces), serif;
+}
+
+.font-mono-num {
+  font-family: var(--font-mono), monospace;
+  font-feature-settings: "tnum";
+}
+
+/* Glassmorphism surfaces */
+.glass {
+  background: rgb(var(--card) / 0.6);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  border: 1px solid rgb(var(--line) / 0.7);
+}
+
+.glass-strong {
+  background: rgb(var(--card) / 0.85);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid rgb(var(--line) / 0.7);
+}
+
+/* Subtle ledger-style ruled background for hero sections */
+.bg-ledger {
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0px,
+    transparent 38px,
+    rgb(var(--line) / 0.35) 39px
+  );
+}
+
+/* Shimmer placeholder for skeletons / saving indicator */
+.shimmer {
+  background: linear-gradient(
+    100deg,
+    rgb(var(--bg-soft)) 30%,
+    rgb(var(--line) / 0.6) 50%,
+    rgb(var(--bg-soft)) 70%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 2.5s linear infinite;
+}
+
+/* Focus visibility */
+:focus-visible {
+  outline: 2px solid #D4A24E;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: rgb(var(--line));
+  border-radius: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
