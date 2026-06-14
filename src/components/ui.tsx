@@ -1,13 +1,15 @@
 import { clsx } from "clsx";
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 
 export function GlassCard({
   children,
   className,
+  style,
   as: Tag = "div",
 }: {
   children: ReactNode;
   className?: string;
+  style?: CSSProperties;
   as?: "div" | "section" | "article";
 }) {
   return (
@@ -16,6 +18,7 @@ export function GlassCard({
         "glass rounded-xl2 shadow-glass dark:shadow-glass-dark p-5 sm:p-6",
         className
       )}
+      style={style}
     >
       {children}
     </Tag>
