@@ -125,7 +125,7 @@ export default function GPACalculatorPage() {
                         className="w-full rounded-xl border border-ink/10 dark:border-paper/15 bg-paper/60 dark:bg-ink-soft/60 px-3 py-2 text-sm outline-none focus:border-gold"
                       />
                       {e.showSuggestions && suggestions.length > 0 && (
-                        <div className="absolute z-50 w-full mt-1 rounded-xl border border-ink/10 dark:border-paper/15 bg-paper dark:bg-ink-soft shadow-glass overflow-hidden">
+                        <div className="absolute z-50 w-full mt-1 rounded-xl border border-ink/10 dark:border-paper/15 bg-paper dark:bg-ink-soft shadow-glass overflow-y-auto max-h-60">
                           {suggestions.map((s) => (
                             <button
                               key={s.name}

@@ -544,5 +544,5 @@ export const SUBJECTS_DB: SubjectSuggestion[] = [
 export function searchSubjects(query: string): SubjectSuggestion[] {
   if (!query || query.length < 2) return [];
   const q = query.toLowerCase();
-  return SUBJECTS_DB.filter(s => s.name.toLowerCase().includes(q)).slice(0, 8);
+  return SUBJECTS_DB.filter(s => s.name.toLowerCase().includes(q)).slice(0, 20);
 }

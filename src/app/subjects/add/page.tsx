@@ -189,7 +189,7 @@ export default function AddSubjectPage() {
                   onFocus={() => { if (suggestions.length > 0) setShowSuggestions(true); }}
                 />
                 {showSuggestions && (
-                  <div className="absolute z-50 w-full mt-1 rounded-xl border border-ink/10 dark:border-paper/15 bg-paper dark:bg-ink-soft shadow-glass overflow-hidden">
+                  <div className="absolute z-50 w-full mt-1 rounded-xl border border-ink/10 dark:border-paper/15 bg-paper dark:bg-ink-soft shadow-glass overflow-y-auto max-h-60">
                     {suggestions.map((s) => (
                       <button
                         key={s.name}
