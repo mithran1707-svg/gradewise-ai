@@ -7,12 +7,14 @@ import GradeRing from "@/components/GradeRing";
 import { calculateGPA, calculateCGPA, computeFinal } from "@/lib/calculations";
 import { GRADE_SCALE } from "@/lib/types";
 import { useSession } from "@/lib/useSession";
+import { searchSubjects } from "@/lib/subjectsDb";
 
 interface ManualEntry {
   id: number;
   subjectName: string;
   credits: number;
   gradePoint: number;
+  showSuggestions?: boolean;
 }
 
 interface SemEntry {
@@ -28,22 +30,20 @@ let semEntryId = 0;
 export default function GPACalculatorPage() {
   const { session, data } = useSession();
 
-  // Manual GPA entries
   const [entries, setEntries] = useState<ManualEntry[]>([
-    { id: ++gpaEntryId, subjectName: "", credits: 4, gradePoint: 9 },
+    { id: ++gpaEntryId, subjectName: "", credits: 3, gradePoint: 9, showSuggestions: false },
   ]);
 
-  // CGPA entries (semester history)
   const [semEntries, setSemEntries] = useState<SemEntry[]>([
     { id: ++semEntryId, label: "Semester 1", credits: 24, gpa: 8.5 },
   ]);
 
   const addEntry = () =>
-    setEntries((e) => [...e, { id: ++gpaEntryId, subjectName: "", credits: 4, gradePoint: 9 }]);
+    setEntries((e) => [...e, { id: ++gpaEntryId, subjectName: "", credits: 3, gradePoint: 9, showSuggestions: false }]);
 
   const removeEntry = (id: number) => setEntries((e) => e.filter((x) => x.id !== id));
 
-  const updateEntry = (id: number, field: keyof ManualEntry, value: string | number) =>
+  const updateEntry = (id: number, field: keyof ManualEntry, value: string | number | boolean) =>
     setEntries((e) => e.map((x) => (x.id === id ? { ...x, [field]: value } : x)));
 
   const addSem = () =>
@@ -57,12 +57,11 @@ export default function GPACalculatorPage() {
   const gpa = calculateGPA(entries.filter((e) => e.credits > 0));
   const cgpa = calculateCGPA(semEntries.filter((s) => s.credits > 0));
 
-  // Load from current subjects if logged in
   const loadFromSubjects = () => {
     if (!data?.subjects.length) return;
     const loaded = data.subjects.map((s) => {
       const r = computeFinal(s, { endSemTheory: s.marks.endSemester ?? 75 });
-      return { id: ++gpaEntryId, subjectName: s.name, credits: s.credits, gradePoint: r.gradePoint };
+      return { id: ++gpaEntryId, subjectName: s.name, credits: s.credits, gradePoint: r.gradePoint, showSuggestions: false };
     });
     setEntries(loaded);
   };
@@ -73,12 +72,11 @@ export default function GPACalculatorPage() {
         <p className="text-xs uppercase tracking-[0.2em] text-gold-deep dark:text-gold font-semibold">Calculators</p>
         <h1 className="font-display text-3xl mt-0.5">GPA & CGPA Calculator</h1>
         <p className="text-sm text-slate-muted mt-1">
-          Calculate manually, or load your subjects automatically from your dashboard.
+          Type a subject name to auto-fill credits, or enter manually.
         </p>
       </div>
 
       <div className="grid lg:grid-cols-3 gap-6">
-        {/* GPA section */}
         <div className="lg:col-span-2 space-y-4">
           <GlassCard>
             <div className="flex items-center justify-between mb-4">
@@ -93,7 +91,6 @@ export default function GPACalculatorPage() {
               Formula: Σ(Credit × Grade Point) ÷ Σ(Credits)
             </p>
 
-            {/* Grade reference */}
             <div className="flex flex-wrap gap-2 mb-5 pb-4 border-b">
               {GRADE_SCALE.map((g) => (
                 <span key={g.letter} className="text-xs bg-ink/5 dark:bg-paper/10 rounded-full px-2.5 py-1">
@@ -109,42 +106,82 @@ export default function GPACalculatorPage() {
                 <span>Grade Point</span>
                 <span />
               </div>
-              {entries.map((e) => (
-                <div key={e.id} className="grid grid-cols-[1fr_80px_90px_32px] gap-2 items-center">
-                  <input
-                    value={e.subjectName}
-                    onChange={(ev) => updateEntry(e.id, "subjectName", ev.target.value)}
-                    placeholder="Subject name"
-                    className="rounded-xl border border-ink/10 dark:border-paper/15 bg-paper/60 dark:bg-ink-soft/60 px-3 py-2 text-sm outline-none focus:border-gold"
-                  />
-                  <input
-                    type="number"
-                    min={1}
-                    max={8}
-                    value={e.credits}
-                    onChange={(ev) => updateEntry(e.id, "credits", Number(ev.target.value))}
-                    className="rounded-xl border border-ink/10 dark:border-paper/15 bg-paper/60 dark:bg-ink-soft/60 px-3 py-2 text-sm outline-none focus:border-gold text-center font-mono-num"
-                  />
-                  <select
-                    value={e.gradePoint}
-                    onChange={(ev) => updateEntry(e.id, "gradePoint", Number(ev.target.value))}
-                    className="rounded-xl border border-ink/10 dark:border-paper/15 bg-paper/60 dark:bg-ink-soft/60 px-3 py-2 text-sm outline-none focus:border-gold"
-                  >
-                    {GRADE_SCALE.map((g) => (
-                      <option key={g.letter} value={g.point}>
-                        {g.letter} ({g.point})
-                      </option>
-                    ))}
-                  </select>
-                  <button
-                    onClick={() => removeEntry(e.id)}
-                    disabled={entries.length === 1}
-                    className="text-slate-muted hover:text-crimson disabled:opacity-30 text-lg leading-none"
-                  >
-                    ×
-                  </button>
-                </div>
-              ))}
+              {entries.map((e) => {
+                const suggestions = searchSubjects(e.subjectName);
+                return (
+                  <div key={e.id} className="grid grid-cols-[1fr_80px_90px_32px] gap-2 items-start">
+                    {/* Subject name with autocomplete */}
+                    <div className="relative">
+                      <input
+                        value={e.subjectName}
+                        onChange={(ev) => {
+                          updateEntry(e.id, "subjectName", ev.target.value);
+                          updateEntry(e.id, "showSuggestions", true);
+                        }}
+                        onFocus={() => updateEntry(e.id, "showSuggestions", true)}
+                        onBlur={() => setTimeout(() => updateEntry(e.id, "showSuggestions", false), 150)}
+                        placeholder="Type subject name..."
+                        autoComplete="off"
+                        className="w-full rounded-xl border border-ink/10 dark:border-paper/15 bg-paper/60 dark:bg-ink-soft/60 px-3 py-2 text-sm outline-none focus:border-gold"
+                      />
+                      {e.showSuggestions && suggestions.length > 0 && (
+                        <div className="absolute z-50 w-full mt-1 rounded-xl border border-ink/10 dark:border-paper/15 bg-paper dark:bg-ink-soft shadow-glass overflow-hidden">
+                          {suggestions.map((s) => (
+                            <button
+                              key={s.name}
+                              type="button"
+                              onMouseDown={(ev) => ev.preventDefault()}
+                              onClick={() => {
+                                updateEntry(e.id, "subjectName", s.name);
+                                updateEntry(e.id, "credits", s.theory + s.practical);
+                                updateEntry(e.id, "showSuggestions", false);
+                              }}
+                              className="w-full text-left px-3 py-2 hover:bg-gold/10 transition-colors border-b border-ink/5 dark:border-paper/5 last:border-0"
+                            >
+                              <p className="text-xs font-medium">{s.name}</p>
+                              <p className="text-xs text-slate-muted">
+                                T:{s.theory} P:{s.practical} | Total: {s.theory + s.practical} credits
+                              </p>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Credits */}
+                    <input
+                      type="number"
+                      min={1}
+                      max={8}
+                      value={e.credits}
+                      onChange={(ev) => updateEntry(e.id, "credits", Number(ev.target.value))}
+                      onFocus={(ev) => ev.target.select()}
+                      className="rounded-xl border border-ink/10 dark:border-paper/15 bg-paper/60 dark:bg-ink-soft/60 px-3 py-2 text-sm outline-none focus:border-gold text-center font-mono-num"
+                    />
+
+                    {/* Grade point */}
+                    <select
+                      value={e.gradePoint}
+                      onChange={(ev) => updateEntry(e.id, "gradePoint", Number(ev.target.value))}
+                      className="rounded-xl border border-ink/10 dark:border-paper/15 bg-paper/60 dark:bg-ink-soft/60 px-3 py-2 text-sm outline-none focus:border-gold"
+                    >
+                      {GRADE_SCALE.map((g) => (
+                        <option key={g.letter} value={g.point}>
+                          {g.letter} ({g.point})
+                        </option>
+                      ))}
+                    </select>
+
+                    <button
+                      onClick={() => removeEntry(e.id)}
+                      disabled={entries.length === 1}
+                      className="text-slate-muted hover:text-crimson disabled:opacity-30 text-lg leading-none mt-2"
+                    >
+                      ×
+                    </button>
+                  </div>
+                );
+              })}
             </div>
 
             <Button variant="secondary" onClick={addEntry} className="mt-4 w-full">
@@ -180,6 +217,7 @@ export default function GPACalculatorPage() {
                     max={50}
                     value={s.credits}
                     onChange={(ev) => updateSem(s.id, "credits", Number(ev.target.value))}
+                    onFocus={(ev) => ev.target.select()}
                     className="rounded-xl border border-ink/10 dark:border-paper/15 bg-paper/60 dark:bg-ink-soft/60 px-3 py-2 text-sm outline-none focus:border-gold text-center font-mono-num"
                   />
                   <input
@@ -189,6 +227,7 @@ export default function GPACalculatorPage() {
                     step={0.01}
                     value={s.gpa}
                     onChange={(ev) => updateSem(s.id, "gpa", Number(ev.target.value))}
+                    onFocus={(ev) => ev.target.select()}
                     className="rounded-xl border border-ink/10 dark:border-paper/15 bg-paper/60 dark:bg-ink-soft/60 px-3 py-2 text-sm outline-none focus:border-gold text-center font-mono-num"
                   />
                   <button
