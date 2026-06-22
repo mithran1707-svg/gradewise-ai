@@ -19,8 +19,9 @@ const average = (values: (number | undefined)[]): number => {
 
 /** Resolve grade band from a final percentage (0-100). */
 export function getGrade(percentage: number): { letter: GradeLetter; point: number } {
-  const pct = clamp(percentage, 0, 100);
-  const band = GRADE_SCALE.find((b) => pct >= b.min && pct <= b.max);
+  const pct = clamp(Math.round(percentage * 100) / 100, 0, 100);
+  // GRADE_SCALE is sorted highest to lowest; find first band where pct >= min
+  const band = GRADE_SCALE.find((b) => pct >= b.min);
   return band ? { letter: band.letter, point: band.point } : { letter: "U", point: 0 };
 }
 
@@ -166,9 +167,9 @@ export function computeFinal(subject: Pick<Subject, "type" | "marks">, input: Fi
   const { letter, point } = getGrade(finalMark);
 
   // For TCP, "internal" is reported as marks out of 100 * internalWeight (its share of the 100-mark total)
-  const internalMax = Math.round(internalWeight * 100 * 100) / 100;
-  const internal = Math.round(internalContribution * 100) / 100;
-  const endSemMax = Math.round(endSemWeight * 100 * 100) / 100;
+  const internalMax = internalWeight * 100;
+  const internal = internalContribution;
+  const endSemMax = endSemWeight * 100;
   const endSemConverted = endSemContribution;
 
   // Pass condition: weighted end-sem average >= 45, total >= 50
