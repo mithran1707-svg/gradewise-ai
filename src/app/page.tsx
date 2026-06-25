@@ -2,20 +2,55 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import ThemeToggle from "@/components/ThemeToggle";
 import GradeRing from "@/components/GradeRing";
 import { Button, GlassCard } from "@/components/ui";
 import { startGuestSession } from "@/lib/storage";
 
+const QUOTES = [
+  { text: "Education is the most powerful weapon which you can use to change the world.", author: "Nelson Mandela" },
+  { text: "The beautiful thing about learning is that no one can take it away from you.", author: "B.B. King" },
+  { text: "An investment in knowledge pays the best interest.", author: "Benjamin Franklin" },
+  { text: "The more that you read, the more things you will know.", author: "Dr. Seuss" },
+  { text: "Live as if you were to die tomorrow. Learn as if you were to live forever.", author: "Mahatma Gandhi" },
+  { text: "It does not matter how slowly you go as long as you do not stop.", author: "Confucius" },
+  { text: "Success is the sum of small efforts, repeated day in and day out.", author: "Robert Collier" },
+  { text: "The secret of getting ahead is getting started.", author: "Mark Twain" },
+  { text: "Don't watch the clock; do what it does. Keep going.", author: "Sam Levenson" },
+  { text: "Believe you can and you're halfway there.", author: "Theodore Roosevelt" },
+  { text: "You don't have to be great to start, but you have to start to be great.", author: "Zig Ziglar" },
+  { text: "The expert in anything was once a beginner.", author: "Helen Hayes" },
+  { text: "Push yourself, because no one else is going to do it for you.", author: "Unknown" },
+  { text: "Study hard, for the well is deep and our brains are shallow.", author: "Richard Baxter" },
+  { text: "Genius is 1% inspiration and 99% perspiration.", author: "Thomas Edison" },
+];
+
 export default function LandingPage() {
   const router = useRouter();
   const [confirmGuest, setConfirmGuest] = useState(false);
+  const [quoteIndex, setQuoteIndex] = useState(0);
+  const [fade, setFade] = useState(true);
+
+  useEffect(() => {
+    // Pick a random quote on load
+    setQuoteIndex(Math.floor(Math.random() * QUOTES.length));
+  }, []);
+
+  const changeQuote = () => {
+    setFade(false);
+    setTimeout(() => {
+      setQuoteIndex((i) => (i + 1) % QUOTES.length);
+      setFade(true);
+    }, 300);
+  };
 
   const continueAsGuest = () => {
     startGuestSession();
     router.push("/dashboard");
   };
+
+  const quote = QUOTES[quoteIndex];
 
   return (
     <div className="min-h-screen bg-ledger relative overflow-hidden">
@@ -23,7 +58,12 @@ export default function LandingPage() {
         <span className="font-display text-lg font-semibold tracking-tight">
           GradeWise <span className="italic text-gold">AI</span>
         </span>
-        <ThemeToggle />
+        <div className="flex items-center gap-3">
+          <Link href="/contact" className="text-sm text-slate-muted hover:text-ink dark:hover:text-paper transition-colors">
+            Contact
+          </Link>
+          <ThemeToggle />
+        </div>
       </header>
 
       <main className="mx-auto max-w-5xl px-4 sm:px-6 pt-10 sm:pt-20 pb-24 grid lg:grid-cols-2 gap-12 items-center">
@@ -40,6 +80,18 @@ export default function LandingPage() {
             Enter your internal marks once. GradeWise AI works out your internal score, predicts
             your final grade, and keeps a running GPA and CGPA — updated the moment you type.
           </p>
+
+          {/* Rotating quote */}
+          <div
+            className="mt-6 p-4 rounded-xl border border-ink/5 dark:border-paper/10 bg-ink/2 dark:bg-paper/5 transition-opacity duration-300 cursor-pointer group"
+            style={{ opacity: fade ? 1 : 0 }}
+            onClick={changeQuote}
+            title="Click for next quote"
+          >
+            <p className="text-sm text-slate-muted italic leading-relaxed">&ldquo;{quote.text}&rdquo;</p>
+            <p className="mt-2 text-xs font-semibold text-gold-deep dark:text-gold tracking-wide">— {quote.author}</p>
+            <p className="mt-1 text-xs text-slate-muted opacity-0 group-hover:opacity-100 transition-opacity">Click for next quote ↻</p>
+          </div>
 
           <div className="mt-8 flex flex-col sm:flex-row gap-3">
             <Link href="/login">

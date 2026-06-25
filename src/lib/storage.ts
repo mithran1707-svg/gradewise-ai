@@ -227,3 +227,27 @@ export function addSemesterRecord(uid: string, record: SemesterRecord) {
 export function newSubjectId(): string {
   return `subj_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }
+
+// ── Contact Messages ─────────────────────────────────────────────────────────
+const CONTACT_KEY = "gradewise:contact";
+
+export interface ContactMessage {
+  name: string;
+  email: string;
+  message: string;
+  createdAt: number;
+}
+
+export function saveContactMessage(msg: ContactMessage): void {
+  const existing = getContactMessages();
+  existing.push(msg);
+  localStorage.setItem(CONTACT_KEY, JSON.stringify(existing));
+}
+
+export function getContactMessages(): ContactMessage[] {
+  try {
+    return JSON.parse(localStorage.getItem(CONTACT_KEY) ?? "[]");
+  } catch {
+    return [];
+  }
+}

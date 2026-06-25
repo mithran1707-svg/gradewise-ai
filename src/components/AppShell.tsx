@@ -12,6 +12,7 @@ const NAV_ITEMS = [
   { href: "/subjects/add", label: "Add", icon: "+" },
   { href: "/semester", label: "Semester", icon: "◔" },
   { href: "/profile", label: "Profile", icon: "◈" },
+  { href: "/contact", label: "Contact", icon: "✉" },
 ];
 
 const DESKTOP_NAV = [
@@ -20,6 +21,7 @@ const DESKTOP_NAV = [
   { href: "/semester", label: "Semester" },
   { href: "/gpa", label: "GPA Calc" },
   { href: "/profile", label: "Profile" },
+  { href: "/contact", label: "Contact" },
 ];
 
 export default function AppShell({ children, title }: { children: React.ReactNode; title?: string }) {

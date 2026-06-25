@@ -4,11 +4,9 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import AppShell from "@/components/AppShell";
 import { GlassCard, Badge } from "@/components/ui";
-import { getAdminUserList, getSession } from "@/lib/storage";
+import { getAdminUserList, getSession, getUsers, getContactMessages, ContactMessage } from "@/lib/storage";
 
-// In a real deployment this would be a Firestore role check.
-// For local demo, we use a hardcoded admin register number env var.
-const ADMIN_REGISTER = process.env.NEXT_PUBLIC_ADMIN_REGISTER ?? "ADMIN";
+const ADMIN_REGISTER = (process.env.NEXT_PUBLIC_ADMIN_REGISTER ?? "ADMIN").toUpperCase();
 
 interface AdminUser {
   fullName: string;
@@ -20,20 +18,31 @@ interface AdminUser {
 export default function AdminPage() {
   const router = useRouter();
   const [users, setUsers] = useState<AdminUser[]>([]);
+  const [messages, setMessages] = useState<ContactMessage[]>([]);
   const [authorized, setAuthorized] = useState<boolean | null>(null);
   const [search, setSearch] = useState("");
 
   useEffect(() => {
     const session = getSession();
-    if (!session) {
+    if (!session || session.isGuest) {
       router.replace("/login");
       return;
     }
-    // Load all local user records for admin display (name, regNo, lastLogin only)
-    const list = getAdminUserList();
-    const current = list.find((u) => u.registerNumber === session.uid || true); // simplified for local demo
-    setAuthorized(true); // In production: check Firestore role === "admin"
-    setUsers(list);
+
+    // Check hardcoded admin session OR register number match
+    const isHardcodedAdmin = (session as any).isAdmin === true;
+    const allUsers = getUsers();
+    const currentUser = allUsers.find((u) => u.uid === session.uid);
+    const isRegAdmin = currentUser?.registerNumber?.toUpperCase() === ADMIN_REGISTER;
+
+    if (!isHardcodedAdmin && !isRegAdmin) {
+      setAuthorized(false);
+      return;
+    }
+
+    setAuthorized(true);
+    setUsers(getAdminUserList());
+    setMessages(getContactMessages().reverse());
   }, [router]);
 
   if (authorized === null) {
@@ -79,7 +88,6 @@ export default function AdminPage() {
         </p>
       </div>
 
-      {/* KPI row */}
       <div className="grid grid-cols-3 gap-4 mb-6">
         <GlassCard className="text-center animate-fade-up">
           <p className="font-mono-num text-3xl font-bold">{users.length}</p>
@@ -95,7 +103,6 @@ export default function AdminPage() {
         </GlassCard>
       </div>
 
-      {/* User table */}
       <GlassCard className="animate-fade-up [animation-delay:160ms] overflow-x-auto">
         <div className="flex items-center justify-between mb-4">
           <h2 className="font-display text-lg font-medium">Registered Users</h2>
@@ -107,7 +114,6 @@ export default function AdminPage() {
           />
         </div>
 
-        {/* Privacy notice */}
         <div className="mb-4 rounded-xl bg-teal/10 border border-teal/30 px-4 py-3 text-sm">
           <span className="font-semibold">🔒 Privacy enforced:</span> CIA, SA, IAPR, ML, internal marks, GPA, CGPA, and grade predictions are never accessible from this panel.
         </div>
@@ -148,6 +154,31 @@ export default function AdminPage() {
         )}
         {filtered.length === 0 && users.length > 0 && (
           <p className="text-slate-muted text-sm text-center py-4">No users match your search.</p>
+        )}
+      </GlassCard>
+
+      {/* Contact Messages */}
+      <GlassCard className="mt-4 animate-fade-up [animation-delay:200ms]">
+        <h2 className="font-display text-lg font-medium mb-4">Contact Messages</h2>
+        {messages.length === 0 ? (
+          <p className="text-slate-muted text-sm text-center py-8">No messages yet.</p>
+        ) : (
+          <div className="space-y-3">
+            {messages.map((m, i) => (
+              <div key={i} className="rounded-xl border border-ink/5 dark:border-paper/10 p-4">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="font-medium text-sm">{m.name}</p>
+                    <p className="text-xs text-slate-muted">{m.email}</p>
+                  </div>
+                  <p className="text-xs text-slate-muted shrink-0">
+                    {new Date(m.createdAt).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}
+                  </p>
+                </div>
+                <p className="text-sm mt-2 text-slate-muted">{m.message}</p>
+              </div>
+            ))}
+          </div>
         )}
       </GlassCard>
     </AppShell>
