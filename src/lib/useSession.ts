@@ -45,11 +45,26 @@ export function useSession(requireAuth = true) {
     [session]
   );
 
+  const updateProfile = useCallback(
+    (patch: Partial<AppData["profile"]>) => {
+      setDataState((prev) => {
+        if (!prev) return prev;
+        const next = { ...prev, profile: { ...prev.profile, ...patch } };
+        if (session && session !== "loading") {
+          saveData(session.uid, next);
+        }
+        return next;
+      });
+    },
+    [session]
+  );
+
   return {
     session: session === "loading" ? null : session,
     loading: session === "loading",
     data: data,
     setData: persist,
     updateSubjects,
+    updateProfile,
   };
 }
