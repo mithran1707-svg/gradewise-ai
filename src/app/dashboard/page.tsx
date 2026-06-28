@@ -7,11 +7,21 @@ import { GlassCard, Badge, Button } from "@/components/ui";
 import { useSession } from "@/lib/useSession";
 import { calculateCGPA, calculateGPA, computeFinal } from "@/lib/calculations";
 import { SUBJECT_TYPE_LABELS } from "@/lib/types";
+import { useState, useEffect } from "react";
+import { saveGuestVisitor } from "@/lib/storage";
 
 const DEFAULT_PREDICTED_END_SEM = 75;
 
 export default function DashboardPage() {
-  const { session, data } = useSession();
+  const { session, data, updateProfile } = useSession();
+  const [showGuestNameModal, setShowGuestNameModal] = useState(false);
+  const [guestName, setGuestName] = useState("");
+
+  useEffect(() => {
+    if (session?.isGuest && data?.profile?.fullName === "Guest Student") {
+      setShowGuestNameModal(true);
+    }
+  }, [session, data]);
 
   if (!session || !data) {
     return (
@@ -141,6 +151,40 @@ export default function DashboardPage() {
           </div>
         </GlassCard>
       </div>
+      {/* Guest name modal */}
+      {showGuestNameModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 dark:bg-ink/60 backdrop-blur-sm px-4">
+          <div className="glass rounded-xl2 shadow-glass p-6 w-full max-w-sm animate-fade-up">
+            <h2 className="font-display text-xl font-medium mb-1">Welcome, Guest! 👋</h2>
+            <p className="text-sm text-slate-muted mb-4">Please enter your name to continue.</p>
+            <input
+              autoFocus
+              value={guestName}
+              onChange={(e) => setGuestName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && guestName.trim()) {
+                  saveGuestVisitor(guestName.trim());
+                  updateProfile({ fullName: guestName.trim() });
+                  setShowGuestNameModal(false);
+                }
+              }}
+              placeholder="Your name"
+              className="w-full rounded-xl border border-ink/10 dark:border-paper/15 bg-paper/60 dark:bg-ink-soft/60 px-3.5 py-2.5 text-sm outline-none focus:border-gold mb-4"
+            />
+            <button
+              disabled={!guestName.trim()}
+              onClick={() => {
+                saveGuestVisitor(guestName.trim());
+                updateProfile({ fullName: guestName.trim() });
+                setShowGuestNameModal(false);
+              }}
+              className="w-full rounded-xl bg-ink text-paper dark:bg-gold dark:text-ink px-4 py-2.5 text-sm font-medium disabled:opacity-50"
+            >
+              Continue →
+            </button>
+          </div>
+        </div>
+      )}
     </AppShell>
   );
 }
