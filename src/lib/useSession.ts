@@ -46,10 +46,10 @@ export function useSession(requireAuth = true) {
   );
 
   const updateProfile = useCallback(
-    (patch: Partial<AppData["profile"]>) => {
+    (patch: Record<string, unknown>) => {
       setDataState((prev) => {
         if (!prev) return prev;
-        const next = { ...prev, profile: { ...prev.profile, ...patch } };
+        const next = { ...prev, profile: { ...prev.profile, ...patch } } as AppData;
         if (session && session !== "loading") {
           saveData(session.uid, next);
         }
