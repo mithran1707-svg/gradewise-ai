@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 import { GlassCard, Button, Input } from "@/components/ui";
 import ThemeToggle from "@/components/ThemeToggle";
-import { login, startGuestSession } from "@/lib/storage";
+import { login, startGuestSession, saveGuestVisitor } from "@/lib/storage";
 
 const ADMIN_REGISTER = (process.env.NEXT_PUBLIC_ADMIN_REGISTER ?? "ADMIN").toUpperCase();
 const ADMIN_PASSWORD = "admin1234@1234";
@@ -17,6 +17,8 @@ export default function LoginPage() {
   const [remember, setRemember] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [resetSent, setResetSent] = useState(false);
+  const [showGuestModal, setShowGuestModal] = useState(false);
+  const [guestName, setGuestName] = useState("");
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -119,15 +121,54 @@ export default function LoginPage() {
 
         <div className="mt-4 text-center">
           <button
-            onClick={() => {
-              startGuestSession();
-              router.push("/dashboard");
-            }}
+            onClick={() => setShowGuestModal(true)}
             className="text-sm text-slate-muted hover:text-ink dark:hover:text-paper underline underline-offset-4"
           >
             Continue as guest instead
           </button>
         </div>
+
+        {showGuestModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 dark:bg-ink/60 backdrop-blur-sm px-4">
+            <div className="glass rounded-xl2 shadow-glass p-6 w-full max-w-sm animate-fade-up">
+              <h2 className="font-display text-xl font-medium mb-1">Welcome, Guest!</h2>
+              <p className="text-sm text-slate-muted mb-4">Enter your name so we know who you are.</p>
+              <input
+                autoFocus
+                value={guestName}
+                onChange={(e) => setGuestName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && guestName.trim()) {
+                    saveGuestVisitor(guestName.trim());
+                    startGuestSession(guestName.trim());
+                    router.push("/dashboard");
+                  }
+                }}
+                placeholder="Your name"
+                className="w-full rounded-xl border border-ink/10 dark:border-paper/15 bg-paper/60 dark:bg-ink-soft/60 px-3.5 py-2.5 text-sm outline-none focus:border-gold mb-4"
+              />
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setShowGuestModal(false)}
+                  className="flex-1 rounded-xl border border-ink/15 dark:border-paper/15 px-4 py-2.5 text-sm font-medium hover:bg-ink/5"
+                >
+                  Cancel
+                </button>
+                <button
+                  disabled={!guestName.trim()}
+                  onClick={() => {
+                    saveGuestVisitor(guestName.trim());
+                    startGuestSession(guestName.trim());
+                    router.push("/dashboard");
+                  }}
+                  className="flex-1 rounded-xl bg-ink text-paper dark:bg-gold dark:text-ink px-4 py-2.5 text-sm font-medium disabled:opacity-50"
+                >
+                  Continue
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         <p className="mt-5 text-center text-sm text-slate-muted">
           New here?{" "}

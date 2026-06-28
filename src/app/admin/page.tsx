@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import AppShell from "@/components/AppShell";
 import { GlassCard, Badge } from "@/components/ui";
-import { getAdminUserList, getSession, getUsers, getContactMessages, ContactMessage } from "@/lib/storage";
+import { getAdminUserList, getSession, getUsers, getContactMessages, ContactMessage, getGuestVisitors, GuestVisitor } from "@/lib/storage";
 
 const ADMIN_REGISTER = (process.env.NEXT_PUBLIC_ADMIN_REGISTER ?? "ADMIN").toUpperCase();
 
@@ -19,6 +19,7 @@ export default function AdminPage() {
   const router = useRouter();
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [messages, setMessages] = useState<ContactMessage[]>([]);
+  const [guests, setGuests] = useState<GuestVisitor[]>([]);
   const [authorized, setAuthorized] = useState<boolean | null>(null);
   const [search, setSearch] = useState("");
 
@@ -43,6 +44,7 @@ export default function AdminPage() {
     setAuthorized(true);
     setUsers(getAdminUserList());
     setMessages(getContactMessages().reverse());
+    setGuests(getGuestVisitors().reverse());
   }, [router]);
 
   if (authorized === null) {
@@ -118,15 +120,17 @@ export default function AdminPage() {
           <span className="font-semibold">🔒 Privacy enforced:</span> CIA, SA, IAPR, ML, internal marks, GPA, CGPA, and grade predictions are never accessible from this panel.
         </div>
 
-        {users.length === 0 ? (
-          <p className="text-slate-muted text-sm text-center py-8">No registered accounts yet.</p>
+        {/* Combined table: registered + guests */}
+        {(filtered.length === 0 && guests.length === 0) ? (
+          <p className="text-slate-muted text-sm text-center py-8">No users yet.</p>
         ) : (
           <table className="w-full text-sm min-w-[400px]">
             <thead>
               <tr className="text-left text-xs text-slate-muted uppercase tracking-wide border-b">
-                <th className="pb-2 pr-6 font-medium">Name</th>
-                <th className="pb-2 pr-6 font-medium">Register No.</th>
-                <th className="pb-2 pr-6 font-medium">Joined</th>
+                <th className="pb-2 pr-4 font-medium">Name</th>
+                <th className="pb-2 pr-4 font-medium">Type</th>
+                <th className="pb-2 pr-4 font-medium">Register No.</th>
+                <th className="pb-2 pr-4 font-medium">Joined / Visited</th>
                 <th className="pb-2 font-medium">Last login</th>
               </tr>
             </thead>
@@ -134,10 +138,15 @@ export default function AdminPage() {
               {filtered.map((u, i) => {
                 const recentlyActive = Date.now() - u.lastLogin < 7 * 24 * 60 * 60 * 1000;
                 return (
-                  <tr key={i} className="group hover:bg-ink/2 dark:hover:bg-paper/2">
-                    <td className="py-3 pr-6 font-medium">{u.fullName}</td>
-                    <td className="py-3 pr-6 font-mono-num text-slate-muted">{u.registerNumber}</td>
-                    <td className="py-3 pr-6 text-slate-muted">
+                  <tr key={`reg-${i}`} className="hover:bg-ink/2 dark:hover:bg-paper/2">
+                    <td className="py-3 pr-4 font-medium">{u.fullName}</td>
+                    <td className="py-3 pr-4">
+                      <span className="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium bg-teal/15 text-teal-deep dark:text-teal">
+                        Registered
+                      </span>
+                    </td>
+                    <td className="py-3 pr-4 font-mono-num text-slate-muted">{u.registerNumber}</td>
+                    <td className="py-3 pr-4 text-slate-muted">
                       {new Date(u.createdAt).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}
                     </td>
                     <td className="py-3">
@@ -149,6 +158,21 @@ export default function AdminPage() {
                   </tr>
                 );
               })}
+              {guests.map((g, i) => (
+                <tr key={`guest-${i}`} className="hover:bg-ink/2 dark:hover:bg-paper/2">
+                  <td className="py-3 pr-4 font-medium">{g.name}</td>
+                  <td className="py-3 pr-4">
+                    <span className="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium bg-gold/15 text-gold-deep dark:text-gold">
+                      Guest
+                    </span>
+                  </td>
+                  <td className="py-3 pr-4 text-slate-muted">—</td>
+                  <td className="py-3 pr-4 text-slate-muted">
+                    {new Date(g.visitedAt).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}
+                  </td>
+                  <td className="py-3 text-slate-muted">—</td>
+                </tr>
+              ))}
             </tbody>
           </table>
         )}

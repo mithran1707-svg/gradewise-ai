@@ -156,13 +156,13 @@ export function login(
   return { ok: true, uid: user.uid };
 }
 
-export function startGuestSession() {
+export function startGuestSession(guestName = "Guest Student") {
   setSession({ uid: GUEST_UID, isGuest: true });
   if (!loadDataRaw(GUEST_UID)) {
     const now = Date.now();
     const profile: StudentProfile = {
       uid: GUEST_UID,
-      fullName: "Guest Student",
+      fullName: guestName || "Guest Student",
       registerNumber: "GUEST",
       email: "",
       memberSince: now,
@@ -247,6 +247,28 @@ export function saveContactMessage(msg: ContactMessage): void {
 export function getContactMessages(): ContactMessage[] {
   try {
     return JSON.parse(localStorage.getItem(CONTACT_KEY) ?? "[]");
+  } catch {
+    return [];
+  }
+}
+
+// ── Guest Visitors ────────────────────────────────────────────────────────────
+const GUESTS_KEY = "gradewise:guests";
+
+export interface GuestVisitor {
+  name: string;
+  visitedAt: number;
+}
+
+export function saveGuestVisitor(name: string): void {
+  const guests = getGuestVisitors();
+  guests.push({ name, visitedAt: Date.now() });
+  localStorage.setItem(GUESTS_KEY, JSON.stringify(guests));
+}
+
+export function getGuestVisitors(): GuestVisitor[] {
+  try {
+    return JSON.parse(localStorage.getItem(GUESTS_KEY) ?? "[]");
   } catch {
     return [];
   }
