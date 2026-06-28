@@ -19,7 +19,7 @@ const DESKTOP_NAV = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "/subjects", label: "Subjects" },
   { href: "/semester", label: "Semester" },
-  { href: "/gpa", label: "GPA Calc" },
+  { href: "/gpa", label: "Calculator" },
   { href: "/profile", label: "Profile" },
   { href: "/contact", label: "Contact" },
 ];

@@ -75,7 +75,7 @@ export default function LoginPage() {
         <form onSubmit={handleSubmit} className="mt-6 space-y-4">
           <Input
             label="Register number or email"
-            placeholder="ADMIN or your register number"
+            placeholder="Your register number or email"
             required
             value={identifier}
             onChange={(e) => setIdentifier(e.target.value)}
