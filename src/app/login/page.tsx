@@ -7,6 +7,9 @@ import { GlassCard, Button, Input } from "@/components/ui";
 import ThemeToggle from "@/components/ThemeToggle";
 import { login, startGuestSession } from "@/lib/storage";
 
+const ADMIN_REGISTER = (process.env.NEXT_PUBLIC_ADMIN_REGISTER ?? "ADMIN").toUpperCase();
+const ADMIN_PASSWORD = "admin1234@1234";
+
 export default function LoginPage() {
   const router = useRouter();
   const [identifier, setIdentifier] = useState("");
@@ -18,6 +21,23 @@ export default function LoginPage() {
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
     setError(null);
+
+    // Admin hardcoded login
+    if (identifier.trim().toUpperCase() === ADMIN_REGISTER) {
+      if (password === ADMIN_PASSWORD) {
+        window.localStorage.setItem(
+          "gradewise:session",
+          JSON.stringify({ uid: "__admin__", isGuest: false, isAdmin: true })
+        );
+        router.push("/admin");
+        return;
+      } else {
+        setError("Incorrect admin password.");
+        return;
+      }
+    }
+
+    // Normal user login
     const result = login(identifier, password);
     if (!result.ok) {
       const messages: Record<string, string> = {
@@ -28,7 +48,6 @@ export default function LoginPage() {
       return;
     }
     if (!remember) {
-      // Session persists for this tab only when "remember me" is off.
       window.addEventListener("beforeunload", () => {
         window.localStorage.removeItem("gradewise:session");
       });
@@ -56,6 +75,7 @@ export default function LoginPage() {
         <form onSubmit={handleSubmit} className="mt-6 space-y-4">
           <Input
             label="Register number or email"
+            placeholder="ADMIN or your register number"
             required
             value={identifier}
             onChange={(e) => setIdentifier(e.target.value)}
@@ -63,6 +83,7 @@ export default function LoginPage() {
           <Input
             label="Password"
             type="password"
+            placeholder="Your password"
             required
             value={password}
             onChange={(e) => setPassword(e.target.value)}
